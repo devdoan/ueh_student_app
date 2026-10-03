@@ -57,19 +57,22 @@ class _AttendanceTabState extends State<AttendanceTab> {
       } 
 
       return await Geolocator.getCurrentPosition(
-        timeLimit: const Duration(seconds: 10),
+        timeLimit: const Duration(seconds: 15),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi lấy vị trí GPS: ${e.toString()}')),
+          SnackBar(
+            content: Text('Không thể lấy vị trí GPS: ${e.toString()}'),
+            backgroundColor: Colors.red.shade800,
+          ),
         );
       }
       return null;
     }
   }
 
-  Future<void> _submitAttendance(String code) async {
+  Future<void> _submitAttendance(String code, {Position? preFetchedPosition}) async {
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng nhập mã điểm danh')),
@@ -80,10 +83,11 @@ class _AttendanceTabState extends State<AttendanceTab> {
     setState(() { _isLoading = true; });
 
     try {
-      final position = await _determinePosition();
+      // Dùng vị trí đã lấy (nếu có) để tránh mất thêm 10s gọi lại GPS
+      final position = preFetchedPosition ?? await _determinePosition();
       if (position == null) {
         setState(() { _isLoading = false; });
-        return; // Đã dừng lại
+        return; // Đã dừng lại do lỗi GPS
       }
 
       final token = await _storage.read(key: 'token');
@@ -123,7 +127,11 @@ class _AttendanceTabState extends State<AttendanceTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            duration: const Duration(seconds: 5),
+            backgroundColor: Colors.red.shade800,
+          ),
         );
       }
     } finally {
@@ -134,6 +142,9 @@ class _AttendanceTabState extends State<AttendanceTab> {
   Future<void> _scanQRCode() async {
     try {
       // 1. Kiểm tra vị trí trước theo yêu cầu thầy giáo
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đang lấy vị trí GPS trước khi quét...')),
+      );
       final position = await _determinePosition();
       if (position == null) return; 
 
@@ -148,12 +159,20 @@ class _AttendanceTabState extends State<AttendanceTab> {
         ),
       );
 
+      // Nếu quét thành công (camera tự đóng)
       if (result.type == ResultType.Barcode) {
         final code = result.rawContent;
         if (code.isNotEmpty) {
           _codeController.text = code;
-          // Có thể tự động điểm danh sau khi quét được mã
-          _submitAttendance(code);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Đã quét được mã: $code. Đang điểm danh...'), backgroundColor: Colors.green),
+            );
+          }
+          
+          // Điểm danh ngay lập tức, truyền vị trí đã lấy vào để tiết kiệm thời gian
+          _submitAttendance(code, preFetchedPosition: position);
         }
       }
     } catch (e) {
