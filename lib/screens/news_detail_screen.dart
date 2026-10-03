@@ -1,0 +1,69 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import '../models/news_item.dart';
+import '../services/api_service.dart';
+
+class NewsDetailScreen extends StatefulWidget {
+  final NewsItemModel newsItem;
+
+  const NewsDetailScreen({super.key, required this.newsItem});
+
+  @override
+  State<NewsDetailScreen> createState() => _NewsDetailScreenState();
+}
+
+class _NewsDetailScreenState extends State<NewsDetailScreen> {
+  final ApiService _apiService = ApiService();
+  String? _htmlContent;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDetail();
+  }
+
+  Future<void> _loadDetail() async {
+    final content = await _apiService.fetchNewsDetail(widget.newsItem.link);
+    if (mounted) {
+      setState(() {
+        _htmlContent = content;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Chi tiết tin tức'),
+        backgroundColor: const Color(0xFFED7D31),
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.newsItem.title,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF245B5B)),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              HtmlWidget(
+                _htmlContent ?? '',
+                textStyle: const TextStyle(
+                  fontSize: 16.0,
+                  height: 1.5,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

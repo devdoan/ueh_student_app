@@ -19,8 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.14.0-201.0.dev
-
+  sdk: '>=3.13.4 <4.0.0'
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -38,6 +37,12 @@ dependencies:
   font_awesome_flutter: ^11.0.0
   flutter_native_splash: ^2.4.8
   webview_flutter: ^4.13.0
+  http: ^1.6.0
+  sqflite: ^2.4.4
+  path_provider: ^2.1.6
+  path: ^1.9.1
+  flutter_widget_from_html: ^0.17.4
+  html: ^0.15.7
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +77,8 @@ flutter:
   assets:
     - assets/images/
     - assets/images/logo-header.png
+    - assets/images/sdg/en/
+    - assets/images/sdg/vi/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
