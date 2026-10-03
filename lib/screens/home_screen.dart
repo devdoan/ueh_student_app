@@ -169,7 +169,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             onTap: () {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Chức năng \${menu.title}')));
+                              if (menu.id == 1) {
+                                setState(() { _selectedIndex = 0; });
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tính năng đang phát triển')));
+                              }
                             },
                           );
                         },
