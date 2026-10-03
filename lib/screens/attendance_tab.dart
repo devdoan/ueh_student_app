@@ -101,6 +101,8 @@ class _AttendanceTabState extends State<AttendanceTab> {
         return;
       }
 
+      // Việc kiểm tra khoảng cách 200m sẽ do SERVER của thầy thực hiện. 
+      // App chỉ có nhiệm vụ lấy tọa độ GPS chính xác nhất gửi lên.
       final data = await _apiService.postAttendance(
         token, 
         code, 
