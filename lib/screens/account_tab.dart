@@ -9,12 +9,14 @@ class AccountTab extends StatefulWidget {
   State<AccountTab> createState() => _AccountTabState();
 }
 
-class _AccountTabState extends State<AccountTab> {
+class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   
   final TextEditingController _mssvController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  
+  late AnimationController _rippleController;
   
   bool _isLoading = false;
   bool _isLoggedIn = false;
@@ -23,7 +25,19 @@ class _AccountTabState extends State<AccountTab> {
   @override
   void initState() {
     super.initState();
+    _rippleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
     _checkLoginStatus();
+  }
+
+  @override
+  void dispose() {
+    _rippleController.dispose();
+    _mssvController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkLoginStatus() async {
@@ -276,16 +290,16 @@ class _AccountTabState extends State<AccountTab> {
                     ),
                     const Spacer(),
                     
-                    // Row 1: Ngày sinh & Giới tính
+                    // Các hàng thông tin
                     Row(
                       children: [
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('NGÀY SINH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
-                              const SizedBox(height: 4),
-                              Text(dob, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                              Text('NGÀY SINH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                              const SizedBox(height: 6),
+                              Text(dob, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -293,9 +307,9 @@ class _AccountTabState extends State<AccountTab> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('GIỚI TÍNH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
-                              const SizedBox(height: 4),
-                              Text(gender, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                              Text('GIỚI TÍNH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                              const SizedBox(height: 6),
+                              Text(gender, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -303,16 +317,15 @@ class _AccountTabState extends State<AccountTab> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Row 2: Khóa & Nơi sinh
                     Row(
                       children: [
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('KHOÁ', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
-                              const SizedBox(height: 4),
-                              Text(cohort, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                              Text('KHOÁ', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                              const SizedBox(height: 6),
+                              Text(cohort, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -320,9 +333,9 @@ class _AccountTabState extends State<AccountTab> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('NƠI SINH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
-                              const SizedBox(height: 4),
-                              Text(placeOfBirth, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                              Text('NƠI SINH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                              const SizedBox(height: 6),
+                              Text(placeOfBirth, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -330,10 +343,10 @@ class _AccountTabState extends State<AccountTab> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Row 3: Hệ đào tạo - Niên học
-                    Text('HỆ ĐẠI HỌC - NIÊN HỌC', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
-                    const SizedBox(height: 4),
-                    Text('$system\n-Niên học: $academicYear', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('HỆ ĐẠI HỌC - NIÊN HỌC', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                    const SizedBox(height: 6),
+                    Text('$system\n- Niên học: $academicYear', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 24),
                     
                     const Spacer(),
                     
@@ -372,23 +385,46 @@ class _AccountTabState extends State<AccountTab> {
               ),
             ),
             
-            // Avatar hình tròn nổi lên trên thẻ
+            // Avatar với hiệu ứng radar nhấp nháy
             Positioned(
               top: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: uehPrimary.withOpacity(0.2), width: 8),
-                ),
-                child: CircleAvatar(
-                  radius: 55,
-                  backgroundColor: Colors.white,
-                  child: CircleAvatar(
-                    radius: 52,
-                    backgroundColor: Colors.grey.shade200,
-                    backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
-                    child: avatar.isEmpty ? const Icon(Icons.person, size: 60, color: Colors.grey) : null,
-                  ),
+              child: SizedBox(
+                width: 150,
+                height: 150,
+                child: AnimatedBuilder(
+                  animation: _rippleController,
+                  builder: (context, child) {
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Vòng radar lan tỏa
+                        Container(
+                          width: 110 + (_rippleController.value * 40),
+                          height: 110 + (_rippleController.value * 40),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: uehPrimary.withOpacity(0.5 * (1 - _rippleController.value)),
+                              width: 10 * (1 - _rippleController.value),
+                            ),
+                          ),
+                        ),
+                        // Avatar cố định
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 4),
+                          ),
+                          child: CircleAvatar(
+                            radius: 52,
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                            child: avatar.isEmpty ? const Icon(Icons.person, size: 60, color: Colors.grey) : null,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
