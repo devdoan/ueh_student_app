@@ -1,9 +1,43 @@
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import '../models/menu_item.dart';
 import '../models/news_item.dart';
 
 class ApiService {
+  Future<Map<String, dynamic>> login(String mssv, String matKhau) async {
+    final url = 'https://api.ngoisaoviet.info/api/login';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'mssv': mssv, 'mat_khau': matKhau}),
+    );
+    
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return data; // Chứa token, refresh_token
+    } else {
+      throw Exception(data['message'] ?? 'Đăng nhập thất bại');
+    }
+  }
+
+  Future<Map<String, dynamic>> getStudentInfo(String token) async {
+    final url = 'https://api.ngoisaoviet.info/api/student-info';
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Không thể tải thông tin sinh viên');
+    }
+  }
+
   Future<List<MenuItemModel>> fetchMenus() async {
     // Đây là Mock API (Dữ liệu giả lập) cho Menu. 
     // Trong thực tế, bạn sẽ thay List này bằng http.get(url_menu_api_cua_truong)

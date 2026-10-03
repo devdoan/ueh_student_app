@@ -1,0 +1,129 @@
+{
+  "info": {
+    "name": "UEH Student API",
+    "description": "Bộ API phục vụ cho đồ án UEH Student App",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Đăng nhập",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"mssv\": \"31241021181\",\n    \"mat_khau\": \"Ueh@21181\"\n}"
+        },
+        "url": {
+          "raw": "https://api.ngoisaoviet.info/api/login",
+          "protocol": "https",
+          "host": [
+            "api",
+            "ngoisaoviet",
+            "info"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Làm mới Token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"refresh_token\": \"<DÁN_REFRESH_TOKEN_VÀO_ĐÂY>\"\n}"
+        },
+        "url": {
+          "raw": "https://api.ngoisaoviet.info/api/refresh-token",
+          "protocol": "https",
+          "host": [
+            "api",
+            "ngoisaoviet",
+            "info"
+          ],
+          "path": [
+            "api",
+            "refresh-token"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Lấy thông tin sinh viên",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer <DÁN_TOKEN_VÀO_ĐÂY>"
+          }
+        ],
+        "url": {
+          "raw": "https://api.ngoisaoviet.info/api/student-info",
+          "protocol": "https",
+          "host": [
+            "api",
+            "ngoisaoviet",
+            "info"
+          ],
+          "path": [
+            "api",
+            "student-info"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Điểm danh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer <DÁN_TOKEN_VÀO_ĐÂY>"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"code\": \"A7K2P9\",\n    \"latitude\": 10.7610401,\n    \"longitude\": 106.6684314\n}"
+        },
+        "url": {
+          "raw": "https://api.ngoisaoviet.info/api/attendance",
+          "protocol": "https",
+          "host": [
+            "api",
+            "ngoisaoviet",
+            "info"
+          ],
+          "path": [
+            "api",
+            "attendance"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

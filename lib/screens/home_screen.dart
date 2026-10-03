@@ -4,6 +4,8 @@ import '../models/menu_item.dart';
 import '../models/news_item.dart';
 import '../services/api_service.dart';
 import '../database/database_helper.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'account_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,8 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentPage = 0;
   int _selectedIndex = 0;
 
-  final Color uehOrange = const Color(0xFFED7D31);
-  final Color uehDarkGreen = const Color(0xFF245B5B);
+  final Color uehPrimary = const Color(0xFF005F69);
+  
 
   @override
   void initState() {
@@ -127,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDrawer() {
     return Drawer(
       child: Container(
-        color: uehOrange,
+        color: uehPrimary,
         child: SafeArea(
           child: Column(
             children: [
@@ -140,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     'UEH\nUNIVERSITY',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: uehDarkGreen, 
+                      color: uehPrimary, 
                       fontSize: 24, 
                       fontWeight: FontWeight.w900,
                       height: 1.0,
@@ -185,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: uehDarkGreen,
+          color: uehPrimary,
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
         ),
         child: Column(
@@ -240,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Text(
               item.category.toUpperCase(),
-              style: TextStyle(color: uehDarkGreen, fontWeight: FontWeight.bold, fontSize: 14),
+              style: TextStyle(color: uehPrimary, fontWeight: FontWeight.bold, fontSize: 14),
             ),
             const SizedBox(height: 8),
             Row(
@@ -260,70 +262,106 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildNewsTab() {
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 24, bottom: 8),
+            child: Column(
+              children: [
+                Text('Tin tức', style: TextStyle(color: uehPrimary, fontSize: 28, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('Thông tin mới nhất và kiến thức hữu ích từ UEH', style: TextStyle(color: Colors.grey, fontSize: 14)),
+              ],
+            ),
+          ),
+        ),
+        if (_news.isEmpty && _isLoadingNews)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          )
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                if (index == _news.length) {
+                  return _hasMoreNews
+                      ? const Padding(padding: EdgeInsets.all(16.0), child: Center(child: CircularProgressIndicator()))
+                      : const SizedBox(height: 32);
+                }
+                
+                final item = _news[index];
+                if (item.isFeatured) {
+                  return _buildFeaturedNews(item);
+                } else {
+                  return _buildStandardNews(item);
+                }
+              },
+              childCount: _news.length + (_hasMoreNews ? 1 : 0),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    String appBarTitle = 'Tin tức UEH';
+    if (_selectedIndex == 1) appBarTitle = 'Thông báo';
+    if (_selectedIndex == 2) appBarTitle = 'Điểm danh';
+    if (_selectedIndex == 3) appBarTitle = 'Tài khoản';
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: uehOrange,
+        backgroundColor: uehPrimary,
         foregroundColor: Colors.white,
         centerTitle: true,
-        title: const Text('Tin tức UEH', style: TextStyle(fontWeight: FontWeight.normal)),
+        title: _selectedIndex == 0 
+            ? Image.asset('assets/images/logo-header.png', height: 40, errorBuilder: (c,e,s) => const Text('Tin tức UEH'))
+            : Text(appBarTitle, style: const TextStyle(fontWeight: FontWeight.normal)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshData,
-          ),
+          if (_selectedIndex == 3)
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Đăng xuất',
+              onPressed: () {
+                // To call logout, we need a global key or just broadcast a state. 
+                // Alternatively, keep a logout function callback or a stream.
+                // For now, I'll clear secure storage and restart app to make it easiest.
+                const FlutterSecureStorage().deleteAll().then((_) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  );
+                });
+              },
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshData,
+            ),
         ],
       ),
       drawer: _buildDrawer(),
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 24, bottom: 8),
-              child: Column(
-                children: [
-                  Text('Tin tức', style: TextStyle(color: uehOrange, fontSize: 28, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  const Text('Thông tin mới nhất và kiến thức hữu ích từ UEH', style: TextStyle(color: Colors.grey, fontSize: 14)),
-                ],
-              ),
-            ),
-          ),
-          if (_news.isEmpty && _isLoadingNews)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            )
-          else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index == _news.length) {
-                    return _hasMoreNews
-                        ? const Padding(padding: EdgeInsets.all(16.0), child: Center(child: CircularProgressIndicator()))
-                        : const SizedBox(height: 32);
-                  }
-                  
-                  final item = _news[index];
-                  if (item.isFeatured) {
-                    return _buildFeaturedNews(item);
-                  } else {
-                    return _buildStandardNews(item);
-                  }
-                },
-                childCount: _news.length + (_hasMoreNews ? 1 : 0),
-              ),
-            ),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          _buildNewsTab(),
+          const Center(child: Text('Màn hình Thông báo')),
+          const Center(child: Text('Màn hình Điểm danh')),
+          const AccountTab(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
-        selectedItemColor: uehOrange,
+        selectedItemColor: uehPrimary,
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
         items: const [

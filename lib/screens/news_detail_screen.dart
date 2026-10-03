@@ -38,7 +38,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chi tiết tin tức'),
-        backgroundColor: const Color(0xFFED7D31),
+        backgroundColor: const Color(0xFF005F69),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -48,7 +48,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
           children: [
             Text(
               widget.newsItem.title,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF245B5B)),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF005F69)),
             ),
             const SizedBox(height: 16),
             if (_isLoading)
