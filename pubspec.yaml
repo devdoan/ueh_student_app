@@ -44,7 +44,8 @@ dependencies:
   flutter_widget_from_html: ^0.17.4
   html: ^0.15.7
   flutter_secure_storage: ^11.2.0
-
+  geolocator: ^14.0.1
+  barcode_scan2: ^4.8.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

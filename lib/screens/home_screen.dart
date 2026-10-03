@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../database/database_helper.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'account_tab.dart';
+import 'attendance_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -354,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildNewsTab(),
           const Center(child: Text('Màn hình Thông báo')),
-          const Center(child: Text('Màn hình Điểm danh')),
+          const AttendanceTab(),
           const AccountTab(),
         ],
       ),

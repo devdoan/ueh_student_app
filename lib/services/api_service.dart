@@ -38,6 +38,29 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> postAttendance(String token, String code, double lat, double lng) async {
+    final url = 'https://api.ngoisaoviet.info/api/attendance';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'code': code,
+        'latitude': lat,
+        'longitude': lng,
+      }),
+    );
+    
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Điểm danh thất bại');
+    }
+  }
+
   Future<List<MenuItemModel>> fetchMenus() async {
     // Đây là Mock API (Dữ liệu giả lập) cho Menu. 
     // Trong thực tế, bạn sẽ thay List này bằng http.get(url_menu_api_cua_truong)
