@@ -1,5 +1,31 @@
-Tóm tắt các bước triển khai đề xuất:
-Bước 1: Nâng cấp Quản lý Token (Refresh Token) trong ApiService để đảm bảo kết nối luôn thông suốt không bị văng.
-Bước 2: Cập nhật Menu Drawer + SQLite để lấy đúng menu từ API theo lời dặn của thầy.
-Bước 3: Nâng cấp Trang chủ Tin tức (gọi API tin nổi bật, gắn ảnh background/thumbnail đúng chuẩn, hiển thị icon SDG).
-Bước 4: Nối API Chi tiết tin tức (/api/news/{uid}).
+3. Quy trình thực tế chúng ta sẽ làm sắp tới:
+
+Khi bạn sẵn sàng triển khai, chúng ta sẽ chia việc như sau:
+
+Phần bạn cần thao tác trên máy tính (vì cần đăng nhập Gmail của bạn):
+Mở terminal gõ npm install -g firebase-tools
+Gõ firebase login để đăng nhập tài khoản Google của bạn.
+Gõ flutterfire configure để liên kết app với Firebase.
+Phần tôi sẽ làm tự động trong code cho bạn:
+Thêm 3 thư viện firebase_core, firebase_messaging, flutter_local_notifications vào pubspec.yaml.
+Khai báo quyền POST_NOTIFICATIONS vào AndroidManifest.xml.
+Viết file khởi tạo dịch vụ thông báo (notification_service.dart), xin quyền thông báo khi mở app, lấy mã FCM Token (địa chỉ nhận thông báo của điện thoại) và bắt sự kiện khi người dùng nhấn vào thông báo để chuyển đến đúng màn hình.
+
+Lưu thông báo đã nhận được vào SQLite
+
+
+Các bước tiếp theo trong Code (theo ảnh 2 của thầy):
+
+Bây giờ mọi công cụ môi trường bên ngoài đã sẵn sàng. Các bước tiếp theo sẽ liên quan đến mã nguồn của app:
+
+Thêm 3 thư viện vào pubspec.yaml:
+firebase_core
+firebase_messaging
+flutter_local_notifications
+Khai báo quyền nhận thông báo vào AndroidManifest.xml:
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+Viết dịch vụ thông báo (lib/services/notification_service.dart):
+Khởi tạo Firebase và Notification service khi app vừa bật.
+Xin quyền hiển thị thông báo từ người dùng.
+Lấy FCM Token và in ra màn hình console (để bạn có thể gửi thử thông báo từ trang web Firebase Console tới máy ảo/điện thoại của bạn).
+Cấu hình hiển thị pop-up banner khi thông báo đến kể cả khi đang mở app hay chạy nền.
