@@ -26,6 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
   
   bool _isLoadingMenu = true;
   bool _isLoadingNews = false;
+  bool _isLoadingMore = false;
+  bool _hasMoreNews = true;
+  int _offset = 0;
   int _selectedIndex = 0;
 
   final Color uehPrimary = const Color(0xFF005F69);
@@ -36,6 +39,18 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadMenus();
     _loadNews();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 250) {
+        _loadMoreNews();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMenus() async {
@@ -72,7 +87,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadNews() async {
     if (_isLoadingNews) return;
 
-    setState(() => _isLoadingNews = true);
+    setState(() {
+      _isLoadingNews = true;
+      _offset = 0;
+      _hasMoreNews = true;
+    });
 
     try {
       final items = await _apiService.fetchFeaturedNews();
@@ -89,10 +108,44 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadMoreNews() async {
+    if (_isLoadingMore || !_hasMoreNews || _isLoadingNews) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final nextOffset = _offset + 4;
+      final newItems = await _apiService.fetchMoreNews(nextOffset, limit: 12);
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+          if (newItems.isEmpty) {
+            _hasMoreNews = false;
+          } else {
+            final existingUids = _news.map((n) => n.uid).toSet();
+            final uniqueItems = newItems.where((n) => !existingUids.contains(n.uid)).toList();
+            if (uniqueItems.isEmpty) {
+              _hasMoreNews = false;
+            } else {
+              _news.addAll(uniqueItems);
+              _offset = nextOffset;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
+  }
+
   Future<void> _refreshData() async {
     setState(() {
       _isLoadingMenu = true;
       _isLoadingNews = true;
+      _offset = 0;
+      _hasMoreNews = true;
     });
     await Future.wait([_loadMenus(), _loadNews()]);
   }
@@ -355,6 +408,24 @@ class _HomeScreenState extends State<HomeScreen> {
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
+                  if (index == _news.length) {
+                    return _hasMoreNews
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24.0),
+                            child: Center(
+                              child: CircularProgressIndicator(color: uehPrimary),
+                            ),
+                          )
+                        : const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24.0),
+                            child: Center(
+                              child: Text(
+                                'Đã hiển thị tất cả tin tức',
+                                style: TextStyle(color: Colors.grey, fontSize: 13),
+                              ),
+                            ),
+                          );
+                  }
                   final item = _news[index];
                   // Tin đầu tiên hoặc tin nổi bật
                   if (item.isFeatured || index == 0) {
@@ -363,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return _buildStandardNews(item);
                   }
                 },
-                childCount: _news.length,
+                childCount: _news.length + (_news.isNotEmpty ? 1 : 0),
               ),
             ),
           const SliverToBoxAdapter(

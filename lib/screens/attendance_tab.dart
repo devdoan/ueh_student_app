@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:barcode_scan2/barcode_scan2.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/api_service.dart';
 
 class AttendanceTab extends StatefulWidget {
@@ -141,16 +142,71 @@ class _AttendanceTabState extends State<AttendanceTab> {
     }
   }
 
+  Future<bool> _checkCameraPermission() async {
+    var status = await Permission.camera.status;
+    if (status.isGranted) {
+      return true;
+    }
+
+    // Yêu cầu quyền truy cập Camera từ người dùng
+    status = await Permission.camera.request();
+    if (status.isGranted) {
+      return true;
+    }
+
+    if (mounted) {
+      if (status.isPermanentlyDenied) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Cần quyền truy cập Camera'),
+            content: const Text(
+              'Ứng dụng cần quyền Camera để quét mã QR điểm danh. '
+              'Bạn đã từ chối quyền vĩnh viễn, vui lòng vào Cài đặt để bật quyền Camera.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  openAppSettings();
+                },
+                child: const Text('Mở Cài đặt'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vui lòng cấp quyền Camera để quét mã QR điểm danh!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+    return false;
+  }
+
   Future<void> _scanQRCode() async {
     try {
-      // 1. Kiểm tra vị trí trước theo yêu cầu thầy giáo
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đang lấy vị trí GPS trước khi quét...')),
-      );
+      // 1. Kiểm tra và xin quyền Camera trước
+      final hasPermission = await _checkCameraPermission();
+      if (!hasPermission) return;
+
+      // 2. Kiểm tra vị trí trước theo yêu cầu thầy giáo
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đang lấy vị trí GPS trước khi quét...')),
+        );
+      }
       final position = await _determinePosition();
       if (position == null) return; 
 
-      // 2. Mở Camera quét QR
+      // 3. Mở Camera quét QR
       var result = await BarcodeScanner.scan(
         options: const ScanOptions(
           strings: {
