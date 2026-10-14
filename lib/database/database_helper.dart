@@ -20,18 +20,29 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'ueh_student_app.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE menu_table(
-            id INTEGER PRIMARY KEY,
-            title TEXT,
-            route TEXT,
-            iconPath TEXT
-          )
-        ''');
+        await _createDb(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('DROP TABLE IF EXISTS menu_table');
+          await _createDb(db);
+        }
       },
     );
+  }
+
+  Future<void> _createDb(Database db) async {
+    await db.execute('''
+      CREATE TABLE menu_table(
+        id INTEGER PRIMARY KEY,
+        icon_name TEXT,
+        menu_name TEXT,
+        menu_url TEXT,
+        ordering INTEGER
+      )
+    ''');
   }
 
   Future<void> insertMenu(List<MenuItemModel> menus) async {
@@ -47,7 +58,8 @@ class DatabaseHelper {
 
   Future<List<MenuItemModel>> getMenus() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('menu_table');
+    final List<Map<String, dynamic>> maps =
+        await db.query('menu_table', orderBy: 'ordering ASC');
     return List.generate(maps.length, (i) {
       return MenuItemModel.fromMap(maps[i]);
     });

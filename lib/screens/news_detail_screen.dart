@@ -24,7 +24,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   }
 
   Future<void> _loadDetail() async {
-    final content = await _apiService.fetchNewsDetail(widget.newsItem.link);
+    final content = await _apiService.fetchNewsDetail(widget.newsItem.uid);
     if (mounted) {
       setState(() {
         _htmlContent = content;
@@ -46,19 +46,48 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.newsItem.categoryName.isNotEmpty) ...[
+              Text(
+                widget.newsItem.categoryName.toUpperCase(),
+                style: const TextStyle(
+                  color: Color(0xFFED6B28),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Text(
               widget.newsItem.title,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF005F69)),
+              style: const TextStyle(
+                fontSize: 20, 
+                fontWeight: FontWeight.bold, 
+                color: Color(0xFF005F69),
+                height: 1.3,
+              ),
             ),
+            if (widget.newsItem.postDate.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.newsItem.postDate.replaceFirst('T', ' '),
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              ),
+            ],
             const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 12),
             if (_isLoading)
-              const Center(child: CircularProgressIndicator())
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40.0),
+                child: Center(child: CircularProgressIndicator(color: Color(0xFF005F69))),
+              )
             else
               HtmlWidget(
                 _htmlContent ?? '',
                 textStyle: const TextStyle(
                   fontSize: 16.0,
                   height: 1.5,
+                  color: Colors.black87,
                 ),
               ),
           ],

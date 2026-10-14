@@ -25,44 +25,41 @@ class _HomeScreenState extends State<HomeScreen> {
   
   bool _isLoadingMenu = true;
   bool _isLoadingNews = false;
-  bool _hasMoreNews = true;
-  int _currentPage = 0;
   int _selectedIndex = 0;
 
   final Color uehPrimary = const Color(0xFF005F69);
-  
+  final Color uehOrange = const Color(0xFFED6B28);
 
   @override
   void initState() {
     super.initState();
     _loadMenus();
     _loadNews();
-    
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-        _loadNews();
-      }
-    });
   }
 
   Future<void> _loadMenus() async {
-    final localMenus = await _dbHelper.getMenus();
-    if (localMenus.isNotEmpty) {
-      setState(() {
-        _menus = localMenus;
-        _isLoadingMenu = false;
-      });
-    }
-
+    // 1. Đọc menu offline từ SQLite trước
     try {
-      final remoteMenus = await _apiService.fetchMenus();
-      await _dbHelper.insertMenu(remoteMenus);
-      
-      if (mounted) {
+      final localMenus = await _dbHelper.getMenus();
+      if (localMenus.isNotEmpty) {
         setState(() {
-          _menus = remoteMenus;
+          _menus = localMenus;
           _isLoadingMenu = false;
         });
+      }
+    } catch (_) {}
+
+    // 2. Tải menu mới nhất từ API và cập nhật vào SQLite
+    try {
+      final remoteMenus = await _apiService.fetchMenus();
+      if (remoteMenus.isNotEmpty) {
+        await _dbHelper.insertMenu(remoteMenus);
+        if (mounted) {
+          setState(() {
+            _menus = remoteMenus;
+            _isLoadingMenu = false;
+          });
+        }
       }
     } catch (e) {
       if (_menus.isEmpty && mounted) {
@@ -72,22 +69,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadNews() async {
-    if (_isLoadingNews || !_hasMoreNews) return;
+    if (_isLoadingNews) return;
 
     setState(() => _isLoadingNews = true);
 
     try {
-      final newItems = await _apiService.fetchNews(_currentPage);
-      
+      final items = await _apiService.fetchFeaturedNews();
       if (mounted) {
         setState(() {
-          _currentPage++;
+          _news = items;
           _isLoadingNews = false;
-          if (newItems.isEmpty) {
-            _hasMoreNews = false;
-          } else {
-            _news.addAll(newItems);
-          }
         });
       }
     } catch (e) {
@@ -99,9 +90,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshData() async {
     setState(() {
-      _news.clear();
-      _currentPage = 0;
-      _hasMoreNews = true;
+      _isLoadingMenu = true;
+      _isLoadingNews = true;
     });
     await Future.wait([_loadMenus(), _loadNews()]);
   }
@@ -113,18 +103,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   IconData _getMenuIcon(String iconPath) {
-    switch(iconPath) {
-      case 'news': return Icons.article_outlined;
-      case 'events': return Icons.calendar_month_outlined;
-      case 'scores': return Icons.score_outlined;
-      case 'face': return Icons.face_retouching_natural_outlined;
-      case 'schedule': return Icons.schedule_outlined;
-      case 'exams': return Icons.assignment_outlined;
-      case 'health': return Icons.health_and_safety_outlined;
-      case 'green': return Icons.eco_outlined;
-      case 'contact': return Icons.contact_support_outlined;
-      default: return Icons.apps;
-    }
+    final name = iconPath.toLowerCase();
+    if (name.contains('news') || name.contains('báo')) return Icons.article_outlined;
+    if (name.contains('calendar') || name.contains('event')) return Icons.calendar_month_outlined;
+    if (name.contains('chart') || name.contains('score') || name.contains('điểm')) return Icons.analytics_outlined;
+    if (name.contains('face') || name.contains('user') || name.contains('khuôn mặt')) return Icons.face_retouching_natural_outlined;
+    if (name.contains('clock') || name.contains('schedule') || name.contains('thời khóa')) return Icons.schedule_outlined;
+    if (name.contains('exam') || name.contains('clipboard') || name.contains('lịch thi')) return Icons.assignment_outlined;
+    if (name.contains('health') || name.contains('shield') || name.contains('sức khỏe')) return Icons.health_and_safety_outlined;
+    if (name.contains('leaf') || name.contains('green') || name.contains('môi trường')) return Icons.eco_outlined;
+    if (name.contains('contact') || name.contains('phone') || name.contains('question') || name.contains('liên hệ')) return Icons.contact_support_outlined;
+    return Icons.apps;
   }
 
   Widget _buildDrawer() {
@@ -152,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Expanded(
-                child: _isLoadingMenu
+                child: _isLoadingMenu && _menus.isEmpty
                     ? const Center(child: CircularProgressIndicator(color: Colors.white))
                     : ListView.builder(
                         itemCount: _menus.length,
@@ -161,18 +150,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: Colors.white24,
-                              child: Icon(_getMenuIcon(menu.iconPath), color: Colors.white),
+                              child: Icon(_getMenuIcon(menu.iconName), color: Colors.white),
                             ),
                             title: Text(
-                              menu.title,
+                              menu.menuName,
                               style: const TextStyle(color: Colors.white, fontSize: 16),
                             ),
                             onTap: () {
                               Navigator.pop(context);
-                              if (menu.id == 1) {
+                              if (menu.id == 1 || menu.menuName.contains('Tin tức')) {
                                 setState(() { _selectedIndex = 0; });
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tính năng đang phát triển')));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Tính năng ${menu.menuName} đang phát triển'))
+                                );
                               }
                             },
                           );
@@ -187,40 +178,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFeaturedNews(NewsItemModel item) {
+    // Thầy dặn: "Có mỗi ảnh tin tức nổi bật trên cùng ở đầu là dùng ảnh background thôi nhé! còn lại dùng ảnh thumbnail hết"
+    final imageUrl = (item.backgroundImg != null && item.backgroundImg!.isNotEmpty)
+        ? item.backgroundImg!
+        : (item.thumbnailImg ?? '');
+
     return InkWell(
       onTap: () => context.push('/news_detail', extra: item),
       child: Container(
-        margin: const EdgeInsets.all(16),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: uehPrimary,
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+          ],
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Image.network(
-              item.thumbnailUrl,
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (c,e,s) => Container(height: 180, color: Colors.grey),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+            if (imageUrl.isNotEmpty)
+              Image.network(
+                imageUrl,
+                height: 180,
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => Container(
+                  height: 180, 
+                  color: Colors.grey.shade300,
+                  child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                ),
+              ),
+            Container(
+              color: const Color(0xFF355E6B),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    item.category.toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 18, letterSpacing: 1.2),
+                  const Text(
+                    'TIN TỨC NỔI BẬT',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  if (item.sdgIcons.isNotEmpty)
-                    Image.asset(item.sdgIcons[0], height: 40, width: 40, errorBuilder: (c,e,s) => const SizedBox()),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  if (item.sdgs.isNotEmpty) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: item.sdgs.map((sdg) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: Image.asset(
+                          'assets/images/sdg/vi/sdg-$sdg.png',
+                          height: 26,
+                          width: 26,
+                          errorBuilder: (c, e, s) => const SizedBox(),
+                        ),
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Text(
                     item.title,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      height: 1.3,
+                    ),
                   ),
                 ],
               ),
@@ -239,27 +266,46 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(color: Colors.grey.shade200),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              item.category.toUpperCase(),
-              style: TextStyle(color: uehPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+              item.categoryName.toUpperCase(),
+              style: TextStyle(
+                color: uehOrange,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: item.sdgIcons.map((path) => Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Image.asset(path, height: 30, width: 30, errorBuilder: (c,e,s) => const SizedBox()),
-              )).toList(),
-            ),
-            const SizedBox(height: 12),
+            if (item.sdgs.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: item.sdgs.map((sdg) => Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: Image.asset(
+                    'assets/images/sdg/vi/sdg-$sdg.png',
+                    height: 26,
+                    width: 26,
+                    errorBuilder: (c, e, s) => const SizedBox(),
+                  ),
+                )).toList(),
+              ),
+            ],
+            const SizedBox(height: 10),
             Text(
               item.title,
-              style: const TextStyle(fontSize: 16, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+                height: 1.3,
+              ),
             ),
           ],
         ),
@@ -268,49 +314,62 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNewsTab() {
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 24, bottom: 8),
-            child: Column(
-              children: [
-                Text('Tin tức', style: TextStyle(color: uehPrimary, fontSize: 28, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text('Thông tin mới nhất và kiến thức hữu ích từ UEH', style: TextStyle(color: Colors.grey, fontSize: 14)),
-              ],
-            ),
-          ),
-        ),
-        if (_news.isEmpty && _isLoadingNews)
-          const SliverToBoxAdapter(
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      color: uehPrimary,
+      child: CustomScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          )
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                if (index == _news.length) {
-                  return _hasMoreNews
-                      ? const Padding(padding: EdgeInsets.all(16.0), child: Center(child: CircularProgressIndicator()))
-                      : const SizedBox(height: 32);
-                }
-                
-                final item = _news[index];
-                if (item.isFeatured) {
-                  return _buildFeaturedNews(item);
-                } else {
-                  return _buildStandardNews(item);
-                }
-              },
-              childCount: _news.length + (_hasMoreNews ? 1 : 0),
+              padding: const EdgeInsets.only(top: 24, bottom: 8),
+              child: Column(
+                children: [
+                  Text(
+                    'Tin tức', 
+                    style: TextStyle(
+                      color: uehOrange, 
+                      fontSize: 26, 
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Thông tin mới nhất và kiến thức hữu ích từ UEH', 
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
             ),
           ),
-      ],
+          if (_news.isEmpty && _isLoadingNews)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(40.0),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final item = _news[index];
+                  // Tin đầu tiên hoặc tin nổi bật
+                  if (item.isFeatured || index == 0) {
+                    return _buildFeaturedNews(item);
+                  } else {
+                    return _buildStandardNews(item);
+                  }
+                },
+                childCount: _news.length,
+              ),
+            ),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 24),
+          ),
+        ],
+      ),
     );
   }
 
@@ -327,23 +386,21 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         centerTitle: true,
         title: _selectedIndex == 0 
-            ? Image.asset('assets/images/logo-header.png', height: 40, errorBuilder: (c,e,s) => const Text('Tin tức UEH'))
+            ? Image.asset('assets/images/logo-header.png', height: 40, errorBuilder: (c,e,s) => const Text('Trang chủ'))
             : Text(appBarTitle, style: const TextStyle(fontWeight: FontWeight.normal)),
         actions: [
           if (_selectedIndex == 3)
             IconButton(
               icon: const Icon(Icons.logout),
               tooltip: 'Đăng xuất',
-              onPressed: () {
-                // To call logout, we need a global key or just broadcast a state. 
-                // Alternatively, keep a logout function callback or a stream.
-                // For now, I'll clear secure storage and restart app to make it easiest.
-                const FlutterSecureStorage().deleteAll().then((_) {
+              onPressed: () async {
+                await const FlutterSecureStorage().deleteAll();
+                if (context.mounted) {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => const HomeScreen()),
                   );
-                });
+                }
               },
             )
           else

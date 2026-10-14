@@ -1,0 +1,5 @@
+Tóm tắt các bước triển khai đề xuất:
+Bước 1: Nâng cấp Quản lý Token (Refresh Token) trong ApiService để đảm bảo kết nối luôn thông suốt không bị văng.
+Bước 2: Cập nhật Menu Drawer + SQLite để lấy đúng menu từ API theo lời dặn của thầy.
+Bước 3: Nâng cấp Trang chủ Tin tức (gọi API tin nổi bật, gắn ảnh background/thumbnail đúng chuẩn, hiển thị icon SDG).
+Bước 4: Nối API Chi tiết tin tức (/api/news/{uid}).
