@@ -170,7 +170,7 @@ class ApiService {
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
         return data.map((json) => NewsItemModel.fromJson(json)).toList();
       }
     } catch (e) {
@@ -179,13 +179,32 @@ class ApiService {
     return [];
   }
 
+  // 6.1. Lấy bài viết xem trước đại diện cho từng Category (219, 220, 221, 222)
+  Future<Map<int, NewsItemModel>> fetchCategoryPreviews() async {
+    final Map<int, NewsItemModel> previews = {};
+    final categoryIds = [219, 220, 221, 222];
+
+    try {
+      final futures = categoryIds.map((id) => fetchNewsByCategory(id, limit: 1, offset: 0));
+      final responses = await Future.wait(futures);
+
+      for (int i = 0; i < categoryIds.length; i++) {
+        if (responses[i].isNotEmpty) {
+          previews[categoryIds[i]] = responses[i].first;
+        }
+      }
+    } catch (_) {}
+
+    return previews;
+  }
+
   // 7. Tin tức theo chuyên mục (phân trang, không cần token)
-  Future<List<NewsItemModel>> fetchNewsByCategory(int catUid, {int limit = 20, int offset = 0}) async {
+  Future<List<NewsItemModel>> fetchNewsByCategory(int catUid, {int limit = 10, int offset = 0}) async {
     final url = '$baseUrl/api/news?cat_uid=$catUid&limit=$limit&offset=$offset';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+        final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
         final List<dynamic> items = data['items'] ?? [];
         return items.map((json) => NewsItemModel.fromJson(json)).toList();
       }
@@ -195,15 +214,16 @@ class ApiService {
     return [];
   }
 
-  // 7.1. Tải thêm tin tức phân trang cho lazyload (không cần token)
-  Future<List<NewsItemModel>> fetchMoreNews(int offset, {int limit = 12}) async {
+  // 7.1. Tải thêm tin tức phân trang cho lazyload toàn bộ chuyên mục (không cần token)
+  Future<List<NewsItemModel>> fetchMoreNews(int offset, {int limit = 8}) async {
     List<NewsItemModel> results = [];
     final categories = [219, 220, 221, 222];
     final limitPerCat = (limit / categories.length).ceil();
+    final catOffset = (offset / categories.length).floor();
 
     try {
       final responses = await Future.wait(
-        categories.map((cat) => fetchNewsByCategory(cat, limit: limitPerCat, offset: offset)),
+        categories.map((cat) => fetchNewsByCategory(cat, limit: limitPerCat, offset: catOffset)),
       );
 
       for (var list in responses) {
@@ -218,7 +238,6 @@ class ApiService {
 
   // 8. Chi tiết tin tức (lấy content HTML, không cần token)
   Future<String> fetchNewsDetail(dynamic idOrLink) async {
-    // Nếu truyền vào int uid hoặc chuỗi số uid
     int? uid;
     if (idOrLink is int) {
       uid = idOrLink;
@@ -231,7 +250,7 @@ class ApiService {
       try {
         final response = await http.get(Uri.parse(url));
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
+          final data = jsonDecode(utf8.decode(response.bodyBytes));
           return data['content'] ?? '<p>Bài viết chưa có nội dung.</p>';
         } else {
           return '<p>Không tìm thấy tin tức.</p>';

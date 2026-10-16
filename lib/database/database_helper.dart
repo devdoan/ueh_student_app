@@ -110,6 +110,12 @@ class DatabaseHelper {
     });
   }
 
+  Future<int> getUnreadCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM notifications_table WHERE is_read = 0');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<void> markNotificationAsRead(int id) async {
     final db = await database;
     await db.update(
