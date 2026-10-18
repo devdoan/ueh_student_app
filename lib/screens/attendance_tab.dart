@@ -5,6 +5,14 @@ import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/api_service.dart';
 
+// ============================================================================
+// 🎤 [THUYẾT MINH: TAB ĐIỂM DANH (ATTENDANCE TAB)]
+// - Tích hợp 3 công nghệ:
+//   1. Permission Handler: Xin quyền Camera runtime an toàn
+//   2. Geolocator: Lấy kinh độ, vĩ độ GPS chính xác của sinh viên
+//   3. BarcodeScanner: Mở camera quét mã QR điểm danh
+// - Gửi dữ liệu điểm danh về API POST /api/attendance để server đối soát
+// ============================================================================
 class AttendanceTab extends StatefulWidget {
   const AttendanceTab({super.key});
 
@@ -19,12 +27,17 @@ class _AttendanceTabState extends State<AttendanceTab> {
   
   bool _isLoading = false;
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 1: LẤY VỊ TRÍ ĐỊA LÝ GPS]
+  // - Kiểm tra dịch vụ định vị (Location Service) có bật không
+  // - Xin quyền vị trí và gọi Geolocator.getCurrentPosition lấy tọa độ chính xác
+  // - Có timeout để chống treo ứng dụng (ANR)
+  // --------------------------------------------------------------------------
   Future<Position?> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;
 
     try {
-      // Có timeLimit để chống treo ANR trên máy ảo
       serviceEnabled = await Geolocator.isLocationServiceEnabled().timeout(const Duration(seconds: 3));
       if (!serviceEnabled) {
         if (mounted) {
@@ -58,7 +71,10 @@ class _AttendanceTabState extends State<AttendanceTab> {
       } 
 
       return await Geolocator.getCurrentPosition(
-        timeLimit: const Duration(seconds: 15),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
       );
     } catch (e) {
       if (mounted) {
@@ -73,6 +89,12 @@ class _AttendanceTabState extends State<AttendanceTab> {
     }
   }
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 2: GỬI DỮ LIỆU ĐIỂM DANH LÊN SERVER]
+  // - Lấy Bearer Token từ SecureStorage, truyền kèm mã QR và tọa độ GPS
+  // - Server kiểm tra khoảng cách thực tế < 200m so với lớp học
+  // - Hiển thị hộp thoại AlertDialog thông báo Thành công / Thất bại
+  // --------------------------------------------------------------------------
   Future<void> _submitAttendance(String code, {Position? preFetchedPosition}) async {
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,11 +106,10 @@ class _AttendanceTabState extends State<AttendanceTab> {
     setState(() { _isLoading = true; });
 
     try {
-      // Dùng vị trí đã lấy (nếu có) để tránh mất thêm 10s gọi lại GPS
       final position = preFetchedPosition ?? await _determinePosition();
       if (position == null) {
         setState(() { _isLoading = false; });
-        return; // Đã dừng lại do lỗi GPS
+        return;
       }
 
       final token = await _storage.read(key: 'token');
@@ -102,8 +123,6 @@ class _AttendanceTabState extends State<AttendanceTab> {
         return;
       }
 
-      // Việc kiểm tra khoảng cách 200m sẽ do SERVER của thầy thực hiện. 
-      // App chỉ có nhiệm vụ lấy tọa độ GPS chính xác nhất gửi lên.
       final data = await _apiService.postAttendance(
         token, 
         code, 
@@ -142,13 +161,17 @@ class _AttendanceTabState extends State<AttendanceTab> {
     }
   }
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 3: QUẢN LÝ QUYỀN CAMERA RUNTIME AN TOÀN]
+  // - Dùng permission_handler xin quyền Camera khi nhấn nút quét
+  // - Nếu người dùng từ chối vĩnh viễn, hiển thị Dialog kèm nút openAppSettings()
+  // --------------------------------------------------------------------------
   Future<bool> _checkCameraPermission() async {
     var status = await Permission.camera.status;
     if (status.isGranted) {
       return true;
     }
 
-    // Yêu cầu quyền truy cập Camera từ người dùng
     status = await Permission.camera.request();
     if (status.isGranted) {
       return true;
@@ -191,13 +214,16 @@ class _AttendanceTabState extends State<AttendanceTab> {
     return false;
   }
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 4: QUÉT MÃ QR CODE]
+  // - Kiểm tra quyền Camera ➡️ Lấy vị trí GPS ➡️ Kích hoạt BarcodeScanner
+  // - Tự động điền mã quét được vào ô nhập và tiến hành gửi điểm danh ngay
+  // --------------------------------------------------------------------------
   Future<void> _scanQRCode() async {
     try {
-      // 1. Kiểm tra và xin quyền Camera trước
       final hasPermission = await _checkCameraPermission();
       if (!hasPermission) return;
 
-      // 2. Kiểm tra vị trí trước theo yêu cầu thầy giáo
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đang lấy vị trí GPS trước khi quét...')),
@@ -206,7 +232,6 @@ class _AttendanceTabState extends State<AttendanceTab> {
       final position = await _determinePosition();
       if (position == null) return; 
 
-      // 3. Mở Camera quét QR
       var result = await BarcodeScanner.scan(
         options: const ScanOptions(
           strings: {
@@ -217,7 +242,6 @@ class _AttendanceTabState extends State<AttendanceTab> {
         ),
       );
 
-      // Nếu quét thành công (camera tự đóng)
       if (result.type == ResultType.Barcode) {
         final code = result.rawContent;
         if (code.isNotEmpty) {
@@ -229,7 +253,6 @@ class _AttendanceTabState extends State<AttendanceTab> {
             );
           }
           
-          // Điểm danh ngay lập tức, truyền vị trí đã lấy vào để tiết kiệm thời gian
           _submitAttendance(code, preFetchedPosition: position);
         }
       }
@@ -242,6 +265,12 @@ class _AttendanceTabState extends State<AttendanceTab> {
     }
   }
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 5: GIAO DIỆN TAB ĐIỂM DANH]
+  // - Giao diện gồm 2 phương thức điểm danh: Nhập mã thủ công và Quét camera tự động
+  // - Ô nhập TextField căn giữa, placeholder gợi ý rõ ràng
+  // - Nút bấm bo tròn 24px với tông màu xanh thương hiệu UEH #005F69
+  // --------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final Color uehPrimary = const Color(0xFF005F69);
@@ -292,6 +321,8 @@ class _AttendanceTabState extends State<AttendanceTab> {
           ),
           const SizedBox(height: 32),
           
+          // 🎤 [THUYẾT MINH - CÁC TÙY CHỌN QUÉT CAMERA]:
+          // "Cung cấp 3 nút tùy chọn với icon trực quan: Quét mã QR, Quét Barcode và Xác thực khuôn mặt."
           _buildOutlinedButton(
             icon: Icons.qr_code_scanner, 
             label: 'Quét mã QR Code', 
@@ -317,6 +348,9 @@ class _AttendanceTabState extends State<AttendanceTab> {
           
           const Spacer(),
           
+          // 🎤 [THUYẾT MINH - NÚT ĐIỂM DANH CHÍNH]:
+          // "Nút kích hoạt gửi mã điểm danh cùng vị trí GPS hiện tại lên API server.
+          // Khi đang xử lý, nút hiển thị vòng quay CircularProgressIndicator để phản hồi trạng thái cho sinh viên."
           SizedBox(
             height: 48,
             child: ElevatedButton(
@@ -337,6 +371,8 @@ class _AttendanceTabState extends State<AttendanceTab> {
     );
   }
 
+  // 🎤 [THUYẾT MINH - WIDGET NÚT VIỀN TÁI SỬ DỤNG]:
+  // "Hàm helper tạo nút OutlinedButton đồng bộ giao diện cho các tính năng quét mã."
   Widget _buildOutlinedButton({required IconData icon, required String label, required VoidCallback onPressed, required Color color}) {
     return SizedBox(
       height: 48,

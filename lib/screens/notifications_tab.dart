@@ -3,6 +3,13 @@ import '../database/database_helper.dart';
 import '../models/notification_item.dart';
 import '../services/notification_service.dart';
 
+// ============================================================================
+// 🎤 [THUYẾT MINH: TAB THÔNG BÁO (NOTIFICATIONS TAB)]
+// - Đọc và hiển thị danh sách thông báo từ SQLite (notifications_table)
+// - Lắng nghe sự kiện thông báo mới từ NotificationService để tự động load lại tức thì
+// - Cho phép xem chi tiết trong AlertDialog, tự động đánh dấu đã đọc (is_read = 1)
+// - Hỗ trợ vuốt để xóa từng tin hoặc xóa tất cả thông báo
+// ============================================================================
 class NotificationsTab extends StatefulWidget {
   const NotificationsTab({super.key});
 
@@ -23,7 +30,9 @@ class _NotificationsTabState extends State<NotificationsTab> {
     super.initState();
     _loadNotifications();
 
-    // Lắng nghe khi có thông báo mới đẩy về thì tự động load lại danh sách tức thì
+    // ------------------------------------------------------------------------
+    // 🎤 [THUYẾT MINH: LẮNG NGHE THÔNG BÁO MỚI TỰ ĐỘNG REFRESH UI]
+    // ------------------------------------------------------------------------
     NotificationService().onNotificationReceived = () {
       if (mounted) {
         _loadNotifications();
@@ -41,6 +50,13 @@ class _NotificationsTabState extends State<NotificationsTab> {
     }
   }
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - XEM CHI TIẾT & CẬP NHẬT TRẠNG THÁI ĐÃ ĐỌC (is_read = 1)]
+  // - Khi sinh viên bấm vào 1 thông báo:
+  //   1. Kiểm tra nếu chưa đọc (!item.isRead) -> Gọi SQLite cập nhật is_read = 1
+  //   2. Gọi lại _loadNotifications() để badge giảm đi và chấm cam biến mất
+  //   3. Hiển thị hộp thoại AlertDialog với tiêu đề, ngày nhận và nội dung đầy đủ
+  // --------------------------------------------------------------------------
   Future<void> _showNotificationDetail(NotificationItemModel item) async {
     // Đánh dấu đã đọc trong SQLite
     if (!item.isRead && item.id != null) {
@@ -93,6 +109,11 @@ class _NotificationsTabState extends State<NotificationsTab> {
     );
   }
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG XÓA TẤT CẢ LỊCH SỬ THÔNG BÁO]
+  // - Mở hộp thoại xác nhận an toàn trước khi xóa
+  // - Gọi SQLite clearAllNotifications() dọn sạch bảng notifications_table
+  // --------------------------------------------------------------------------
   Future<void> _clearAll() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -183,6 +204,9 @@ class _NotificationsTabState extends State<NotificationsTab> {
                       itemCount: _notifications.length,
                       itemBuilder: (context, index) {
                         final notif = _notifications[index];
+                        // 🎤 [THUYẾT MINH - CỬ CHỈ VUỐT ĐỂ XÓA (DISMISSIBLE)]:
+                        // "Sử dụng widget Dismissible hỗ trợ thao tác vuốt từ phải sang trái (endToStart).
+                        // Khi người dùng vuốt, bản ghi thông báo tương ứng trong SQLite bị xóa ngay lập tức."
                         return Dismissible(
                           key: Key('notif_${notif.id ?? index}'),
                           direction: DismissDirection.endToStart,
@@ -197,6 +221,9 @@ class _NotificationsTabState extends State<NotificationsTab> {
                               _dbHelper.deleteNotification(notif.id!);
                             }
                           },
+                          // 🎤 [THUYẾT MINH - PHÂN BIỆT THÔNG BÁO ĐÃ ĐỌC VÀ CHƯA ĐỌC]:
+                          // "Thông báo chưa đọc có viền xanh cổ vịt #005F69, icon chuông đang reo và chấm tròn cam UEH.
+                          // Khi đã đọc, viền chuyển xám thanh lịch và chấm tròn cam tự động biến mất."
                           child: InkWell(
                             onTap: () => _showNotificationDetail(notif),
                             child: Container(

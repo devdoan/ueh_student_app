@@ -1,3 +1,12 @@
+// ============================================================================
+// 🎤 [THUYẾT MINH - TAB TÀI KHOẢN & THẺ SINH VIÊN SỐ]:
+// "Dạ thưa thầy, Tab Tài khoản quản lý xác thực người dùng sinh viên UEH.
+// Nếu chưa đăng nhập, tab hiển thị Form đăng nhập chuẩn với MSSV và mật khẩu.
+// Sau khi đăng nhập thành công, Access Token và Refresh Token được lưu an toàn
+// vào FlutterSecureStorage. Ứng dụng sẽ hiển thị Thẻ sinh viên số (Digital Student Card)
+// với đầy đủ thông tin cá nhân, ảnh đại diện có hiệu ứng radar động và mã QR cá nhân."
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api_service.dart';
@@ -11,11 +20,18 @@ class AccountTab extends StatefulWidget {
 
 class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
+
+  // 🎤 [THUYẾT MINH - BẢO MẬT TOKEN VỚI FLUTTER SECURE STORAGE]:
+  // "Em sử dụng thư viện flutter_secure_storage để mã hóa và lưu trữ token an toàn
+  // (sử dụng KeyStore trên Android và Keychain trên iOS), tránh rò rỉ dữ liệu."
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   
   final TextEditingController _mssvController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   
+  // 🎤 [THUYẾT MINH - HIỆU ỨNG RADAR AVATAR]:
+  // "Sử dụng AnimationController với thời lượng 2 giây, lặp vô tận (repeat)
+  // để tạo vòng tròn xung động lan tỏa (pulsing radar) quanh ảnh đại diện sinh viên."
   late AnimationController _rippleController;
   
   bool _isLoading = false;
@@ -29,6 +45,9 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
+
+    // 🎤 [THUYẾT MINH - TỰ ĐỘNG KHÔI PHỤC PHIÊN ĐĂNG NHẬP]:
+    // "Khi người dùng mở tab, hệ thống tự động kiểm tra xem token đã lưu trước đó còn hợp lệ không."
     _checkLoginStatus();
   }
 
@@ -40,6 +59,9 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  // 🎤 [THUYẾT MINH - KIỂM TRA PHIÊN LÀM VIỆC]:
+  // "Đọc token từ FlutterSecureStorage. Nếu tồn tại, đổi trạng thái _isLoggedIn = true
+  // và gọi _fetchProfile() để tải thông tin sinh viên từ server."
   Future<void> _checkLoginStatus() async {
     final token = await _storage.read(key: 'token');
     if (token != null && token.isNotEmpty) {
@@ -50,6 +72,9 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
     }
   }
 
+  // 🎤 [THUYẾT MINH - LẤY THÔNG TIN SINH VIÊN TỪ API]:
+  // "Gửi request GET /v1/student/info kèm Bearer Token. Nếu token hết hạn hoặc lỗi,
+  // hệ thống sẽ tự động gọi _logout() để xóa cache và đưa về màn hình đăng nhập."
   Future<void> _fetchProfile(String token) async {
     try {
       final info = await _apiService.getStudentInfo(token);
@@ -64,6 +89,10 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
     }
   }
 
+  // 🎤 [THUYẾT MINH - XỬ LÝ ĐĂNG NHẬP]:
+  // "Validate dữ liệu đầu vào (MSSV và Mật khẩu). Sau đó gọi API login.
+  // Khi thành công, lưu cả token và refresh_token vào secure storage để
+  // phục vụ cơ chế tự động cấp phát lại token mới khi token cũ hết hạn (Refresh Token Flow)."
   Future<void> _login() async {
     final mssv = _mssvController.text.trim();
     final password = _passwordController.text.trim();
@@ -106,6 +135,8 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
     }
   }
   
+  // 🎤 [THUYẾT MINH - ĐĂNG XUẤT AN TOÀN]:
+  // "Xóa sạch token và refresh_token khỏi bộ nhớ bảo mật, đặt lại state về rỗng."
   Future<void> _logout() async {
     await _storage.delete(key: 'token');
     await _storage.delete(key: 'refresh_token');
@@ -117,6 +148,9 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
     });
   }
 
+  // 🎤 [THUYẾT MINH - GIAO DIỆN FORM ĐĂNG NHẬP]:
+  // "Giao diện đăng nhập hiện đại với banner trường UEH, các ô nhập liệu tối giản
+  // và nút 'ĐĂNG NHẬP' mang màu xanh thương hiệu #005F69."
   Widget _buildLoginScreen() {
     final Color uehPrimary = const Color(0xFF005F69);
     
@@ -124,6 +158,7 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+
           Image.asset(
             'assets/images/nso-splash-landscape-1499x999.png',
             height: 200,
@@ -239,6 +274,10 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
     return isoDate;
   }
 
+  // 🎤 [THUYẾT MINH - GIAO DIỆN THẺ SINH VIÊN SỐ (DIGITAL STUDENT CARD)]:
+  // "Dạ thưa thầy, khi đã đăng nhập, màn hình sẽ hiển thị chiếc Thẻ sinh viên số
+  // được thiết kế dạng Card sang trọng với màu xanh thương hiệu #005F69 của UEH.
+  // Thẻ có bố cục chuẩn gồm thông tin cá nhân, avatar có radar động, và mã QR tích hợp."
   Widget _buildProfileScreen() {
     if (_studentInfo == null) {
       return const Center(child: CircularProgressIndicator());
@@ -260,7 +299,9 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
         return Stack(
           alignment: Alignment.topCenter,
           children: [
-            // Thẻ chứa thông tin màu xanh uehPrimary
+            // 🎤 [THUYẾT MINH - KHUNG THẺ SINH VIÊN UEH]:
+            // "Thẻ chính bo tròn góc 24px, nền màu xanh cổ vịt #005F69,
+            // khoảng đệm top 70px để chừa không gian nổi cho avatar ở phía trên."
             Positioned(
               top: 60,
               left: 16,
@@ -278,7 +319,7 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
                     Center(
                       child: Text(
                         'SINH VIÊN',
-                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -290,14 +331,16 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
                     ),
                     const Spacer(),
                     
-                    // Các hàng thông tin
+                    // 🎤 [THUYẾT MINH - CÁC HÀNG THÔNG TIN SINH VIÊN]:
+                    // "Hiển thị Ngày sinh, Giới tính, Khóa, Nơi sinh, Hệ đào tạo và Niên học
+                    // được căn chỉnh dạng lưới 2 cột khoa học, dễ đọc."
                     Row(
                       children: [
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('NGÀY SINH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                              Text('NGÀY SINH', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, letterSpacing: 1.2)),
                               const SizedBox(height: 6),
                               Text(dob, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
@@ -307,7 +350,7 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('GIỚI TÍNH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                              Text('GIỚI TÍNH', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, letterSpacing: 1.2)),
                               const SizedBox(height: 6),
                               Text(gender, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
@@ -323,7 +366,7 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('KHOÁ', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                              Text('KHOÁ', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, letterSpacing: 1.2)),
                               const SizedBox(height: 6),
                               Text(cohort, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
@@ -333,7 +376,7 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('NƠI SINH', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                              Text('NƠI SINH', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, letterSpacing: 1.2)),
                               const SizedBox(height: 6),
                               Text(placeOfBirth, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
@@ -343,14 +386,16 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
                     ),
                     const SizedBox(height: 24),
                     
-                    Text('HỆ ĐẠI HỌC - NIÊN HỌC', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, letterSpacing: 1.2)),
+                    Text('HỆ ĐẠI HỌC - NIÊN HỌC', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, letterSpacing: 1.2)),
                     const SizedBox(height: 6),
                     Text('$system\n- Niên học: $academicYear', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
                     
                     const Spacer(),
                     
-                    // Footer: Chữ UEH và QR Code
+                    // 🎤 [THUYẾT MINH - MÃ QR CÁ NHÂN HÓA MSSV]:
+                    // "Ở góc dưới thẻ có logo UEH UNIVERSITY và mã QR Code được sinh động
+                    // theo MSSV của sinh viên. Mã này dùng để xác minh hoặc quét nhanh khi vào cổng/thư viện."
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -359,7 +404,7 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('UEH', style: TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900, height: 1.0)),
-                            Text('UNIVERSITY', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                            Text('UNIVERSITY', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                           ],
                         ),
                         Container(
@@ -385,7 +430,9 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
               ),
             ),
             
-            // Avatar với hiệu ứng radar nhấp nháy
+            // 🎤 [THUYẾT MINH - HIỆU ỨNG RADAR SÓNG LAN TỎA QUANH AVATAR]:
+            // "AnimatedBuilder lắng nghe _rippleController để vẽ vòng tròn mở rộng dần
+            // và mờ dần (fade out) tạo cảm giác như sóng radar công nghệ hiện đại bao quanh ảnh thẻ."
             Positioned(
               top: 0,
               child: SizedBox(
@@ -404,7 +451,7 @@ class _AccountTabState extends State<AccountTab> with SingleTickerProviderStateM
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: uehPrimary.withOpacity(0.5 * (1 - _rippleController.value)),
+                              color: uehPrimary.withValues(alpha: 0.5 * (1 - _rippleController.value)),
                               width: 10 * (1 - _rippleController.value),
                             ),
                           ),

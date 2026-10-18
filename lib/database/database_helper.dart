@@ -3,6 +3,12 @@ import 'package:path/path.dart';
 import '../models/menu_item.dart';
 import '../models/notification_item.dart';
 
+// ============================================================================
+// 🎤 [THUYẾT MINH: TẦNG CƠ SỞ DỮ LIỆU CỤC BỘ SQLITE (DATABASE HELPER)]
+// - Sử dụng mô hình Singleton (DatabaseHelper._internal) duy nhất trong toàn app
+// - Bảng menu_table: Cache dữ liệu menu từ API để app hoạt động OFFLINE khi mất mạng
+// - Bảng notifications_table: Lưu trữ lịch sử thông báo từ Firebase Cloud Messaging
+// ============================================================================
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
@@ -17,6 +23,7 @@ class DatabaseHelper {
     return _database!;
   }
 
+  // Khởi tạo Database ueh_student_app.db
   Future<Database> _initDb() async {
     String path = join(await getDatabasesPath(), 'ueh_student_app.db');
     return await openDatabase(
@@ -45,6 +52,11 @@ class DatabaseHelper {
     );
   }
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - CẤU TRÚC 2 BẢNG SQLITE]:
+  // 1. menu_table: id, icon_name, menu_name, menu_url, ordering
+  // 2. notifications_table: id, title, body, received_at, is_read, data
+  // --------------------------------------------------------------------------
   Future<void> _createDb(Database db) async {
     await db.execute('''
       CREATE TABLE menu_table(
@@ -68,7 +80,11 @@ class DatabaseHelper {
     ''');
   }
 
-  // --- MENU METHODS ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH - QUẢN LÝ MENU OFFLINE]:
+  // - insertMenu: Dùng Batch để xóa cũ và ghi đè toàn bộ danh sách menu từ API
+  // - getMenus: Đọc menu từ SQLite sắp xếp theo ordering để hiển thị lên Drawer
+  // ==========================================================================
   Future<void> insertMenu(List<MenuItemModel> menus) async {
     final db = await database;
     Batch batch = db.batch();
@@ -89,7 +105,14 @@ class DatabaseHelper {
     });
   }
 
-  // --- NOTIFICATION METHODS ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH - QUẢN LÝ THÔNG BÁO FIREBASE TRONG SQLITE]:
+  // - insertNotification: Lưu thông báo mới nhận được từ Firebase
+  // - getNotifications: Lấy danh sách thông báo theo thứ tự mới nhất (id DESC)
+  // - getUnreadCount: Đếm số lượng thông báo chưa đọc (is_read = 0) để gắn badge đỏ
+  // - markNotificationAsRead: Cập nhật is_read = 1 khi sinh viên mở xem
+  // - deleteNotification & clearAllNotifications: Xóa 1 hoặc tất cả thông báo
+  // ==========================================================================
   Future<int> insertNotification(NotificationItemModel item) async {
     final db = await database;
     return await db.insert(

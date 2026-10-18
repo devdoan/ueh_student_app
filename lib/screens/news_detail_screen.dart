@@ -3,6 +3,15 @@ import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import '../models/news_item.dart';
 import '../services/api_service.dart';
 
+// ============================================================================
+// 🎤 [THUYẾT MINH: MÀN HÌNH CHI TIẾT TIN TỨC (NEWS DETAIL SCREEN)]
+// "Dạ thưa thầy, màn hình này hiển thị toàn bộ nội dung bài viết định dạng HTML
+// lấy từ API GET /v1/news/{uid}.
+// - Sử dụng thư viện flutter_widget_from_html để render sinh động hình ảnh, đoạn văn,
+//   bảng biểu và liên kết trực tiếp từ mã nguồn HTML.
+// - Dữ liệu được giải mã UTF-8 tiếng Việt chuẩn xác qua utf8.decode(response.bodyBytes).
+// - Nút quay lại (Back arrow <) ở AppBar cho phép trở về danh sách bài viết mượt mà."
+// ============================================================================
 class NewsDetailScreen extends StatefulWidget {
   final NewsItemModel newsItem;
 
@@ -23,6 +32,11 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     _loadDetail();
   }
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - GỌI API LẤY NỘI DUNG HTML BÀI VIẾT]:
+  // "Gọi hàm fetchNewsDetail với uid bài viết. Khi nhận được nội dung HTML,
+  // setState cập nhật _htmlContent và tắt cờ _isLoading để hiển thị bài viết."
+  // --------------------------------------------------------------------------
   Future<void> _loadDetail() async {
     final content = await _apiService.fetchNewsDetail(widget.newsItem.uid);
     if (mounted) {
@@ -87,6 +101,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                 child: Center(child: CircularProgressIndicator(color: Color(0xFF005F69))),
               )
             else
+              // 🎤 [THUYẾT MINH - HIỂN THỊ NỘI DUNG HTML PHONG PHÚ]:
+              // "Widget HtmlWidget xử lý các thẻ <img>, <p>, <a>, <strong> trong HTML
+              // và dàn trang đẹp mắt, tương thích hoàn toàn với nội dung biên tập từ CMS trường."
               HtmlWidget(
                 _htmlContent ?? '',
                 textStyle: const TextStyle(

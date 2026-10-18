@@ -7,7 +7,21 @@ import '../database/database_helper.dart';
 import '../models/notification_item.dart';
 import '../firebase_options.dart';
 
-// Hàm xử lý thông báo khi App đang chạy nền hoặc đã tắt hoàn toàn (Background/Terminated)
+// ============================================================================
+// 🎤 [THUYẾT MINH: TẦNG DỊCH VỤ THÔNG BÁO PUSH NOTIFICATION (FIREBASE)]
+// - Sử dụng Firebase Cloud Messaging (FCM) kết hợp Flutter Local Notifications
+// - Hỗ trợ nhận thông báo ở cả 3 trạng thái:
+//   1. Foreground: App đang mở trên màn hình (hiển thị popup banner rung chuông)
+//   2. Background: App đang thu nhỏ chạy ngầm
+//   3. Terminated: App đã bị đóng hoàn toàn
+// - Tự động lưu mọi thông báo nhận được vào SQLite (notifications_table)
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 🎤 [THUYẾT MINH - XỬ LÝ KHI APP ĐANG CHẠY NỀN HOẶC ĐÃ ĐÓNG (BACKGROUND)]:
+// - Được gắn @pragma('vm:entry-point') để hệ thống Android gọi độc lập
+// - Tự khởi tạo Firebase và ghi thông báo trực tiếp vào SQLite
+// ----------------------------------------------------------------------------
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
@@ -41,6 +55,7 @@ class NotificationService {
   // Callback báo cho màn hình Thông báo biết để tự động load lại dữ liệu ngay lập tức
   VoidCallback? onNotificationReceived;
 
+  // Kênh thông báo trên Android (Channel) với độ ưu tiên cao nhất (Importance.max)
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'ueh_notification_channel',
     'Thông báo UEH',
@@ -50,8 +65,16 @@ class NotificationService {
     enableVibration: true,
   );
 
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - KHỞI TẠO DỊCH VỤ THÔNG BÁO]:
+  // 1. Xin quyền nhận thông báo từ người dùng (POST_NOTIFICATIONS trên Android 13+)
+  // 2. Cấu hình Local Notifications và Android Channel
+  // 3. Lấy Device FCM Token
+  // 4. Subscribe vào Topic 'ueh_all' để nhận thông báo phát thanh toàn trường
+  // 5. Lắng nghe thông báo khi Foreground và tự động lưu vào SQLite
+  // --------------------------------------------------------------------------
   Future<void> initialize() async {
-    // 1. Xin quyền nhận thông báo từ người dùng (bắt buộc cho Android 13+ và iOS)
+    // 1. Xin quyền nhận thông báo
     NotificationSettings settings = await _fcm.requestPermission(
       alert: true,
       badge: true,
@@ -60,7 +83,7 @@ class NotificationService {
     );
     debugPrint('🔔 Trạng thái cấp quyền thông báo: ${settings.authorizationStatus}');
 
-    // 2. Khởi tạo Local Notifications (hiển thị popup trên máy Android/iOS)
+    // 2. Khởi tạo Local Notifications
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
@@ -85,18 +108,17 @@ class NotificationService {
       await androidPlugin.requestNotificationsPermission();
     }
 
-    // 4. Lấy và in mã FCM Token ra console để tiện gửi thử nghiệm
+    // 4. Lấy FCM Token để phục vụ kiểm thử gửi thông báo từ Firebase Console
     try {
       String? token = await _fcm.getToken();
       debugPrint('\n======================================================');
-      debugPrint('🔥 FCM DEVICE TOKEN (Copy token này dán lên Firebase test):');
-      debugPrint('$token');
+      debugPrint('🔥 FCM DEVICE TOKEN: $token');
       debugPrint('======================================================\n');
     } catch (e) {
       debugPrint('❌ Không thể lấy FCM Token: $e');
     }
 
-    // Đăng ký nhận thông báo nhóm toàn trường
+    // Đăng ký nhận thông báo nhóm toàn trường (Topic: ueh_all)
     try {
       await _fcm.subscribeToTopic('ueh_all');
       debugPrint('📢 Đã đăng ký nhận thông báo nhóm: ueh_all');
@@ -120,10 +142,10 @@ class NotificationService {
         data: message.data.isNotEmpty ? jsonEncode(message.data) : null,
       ));
 
-      // Báo UI cập nhật tức thì
+      // Báo UI tab Thông báo cập nhật danh sách tức thì
       onNotificationReceived?.call();
 
-      // Hiện Pop-up Banner đỉnh màn hình
+      // Hiện Pop-up Banner đỉnh màn hình kèm rung và chuông
       RemoteNotification? notification = message.notification;
       if (notification != null) {
         _localNotifications.show(
@@ -147,11 +169,10 @@ class NotificationService {
       }
     });
 
-    // 6. Xử lý khi người dùng ấn vào thông báo từ thanh thông báo hệ thống
+    // 6. Xử lý khi người dùng ấn vào thông báo từ thanh trạng thái
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('🚀 Mở app từ thông báo: ${message.notification?.title}');
       onNotificationReceived?.call();
     });
   }
 }
-

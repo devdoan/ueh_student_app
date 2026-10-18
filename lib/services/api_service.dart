@@ -4,11 +4,22 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/menu_item.dart';
 import '../models/news_item.dart';
 
+// ============================================================================
+// 🎤 [THUYẾT MINH: TẦNG DỊCH VỤ API (API SERVICE)]
+// - Chịu trách nhiệm kết nối RESTful API với server trường (api.ngoisaoviet.info)
+// - Quản lý Access Token & Refresh Token bằng FlutterSecureStorage
+// - Tự động Refresh Token khi gặp mã lỗi 401 Unauthorized
+// - Xử lý tiếng Việt chuẩn xác bằng utf8.decode(response.bodyBytes)
+// ============================================================================
 class ApiService {
   static const String baseUrl = 'https://api.ngoisaoviet.info';
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  // 1. Đăng nhập
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 1: ĐĂNG NHẬP HỆ THỐNG]
+  // - Gọi POST /api/login truyền MSSV & Mật khẩu
+  // - Nhận về Token và Refresh Token, lưu trữ bảo mật trong FlutterSecureStorage
+  // --------------------------------------------------------------------------
   Future<Map<String, dynamic>> login(String mssv, String matKhau) async {
     final url = '$baseUrl/api/login';
     final response = await http.post(
@@ -31,7 +42,11 @@ class ApiService {
     }
   }
 
-  // 2. Làm mới token (Refresh token)
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 2: TỰ ĐỘNG REFRESH TOKEN KHI HẾT HẠN]
+  // - Khi Token hết hạn, gọi POST /api/refresh-token với refresh_token đã lưu
+  // - Giúp phiên đăng nhập duy trì liên tục mà không bắt người dùng đăng nhập lại
+  // --------------------------------------------------------------------------
   Future<bool> refreshToken() async {
     try {
       final currentRefreshToken = await _storage.read(key: 'refresh_token');
@@ -100,7 +115,10 @@ class ApiService {
     return response;
   }
 
-  // 3. Lấy thông tin sinh viên
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 3: LẤY THÔNG TIN SINH VIÊN]
+  // - Gọi GET /api/student-info có Bearer Token để lấy hồ sơ cá nhân
+  // --------------------------------------------------------------------------
   Future<Map<String, dynamic>> getStudentInfo([String? token]) async {
     final response = await _authenticatedRequest('GET', '/api/student-info', tokenOverride: token);
 
@@ -116,7 +134,11 @@ class ApiService {
     }
   }
 
-  // 4. Điểm danh
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 4: ĐIỂM DANH GPS & QR CODE]
+  // - Gửi tọa độ GPS (latitude, longitude) và mã QR Code lên POST /api/attendance
+  // - Server kiểm tra khoảng cách < 200m so với phòng học và xác nhận điểm danh
+  // --------------------------------------------------------------------------
   Future<Map<String, dynamic>> postAttendance(String token, String code, double lat, double lng) async {
     final response = await _authenticatedRequest(
       'POST',
@@ -137,7 +159,11 @@ class ApiService {
     }
   }
 
-  // 5. Lấy Menu Drawer từ API (yêu cầu token)
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 5: TẢI MENU DRAWER TỪ API]
+  // - Gọi GET /api/menu để lấy danh sách chức năng từ server
+  // - Dữ liệu sau đó được DatabaseHelper lưu vào SQLite để xem offline
+  // --------------------------------------------------------------------------
   Future<List<MenuItemModel>> fetchMenus([String? token]) async {
     try {
       final response = await _authenticatedRequest('GET', '/api/menu', tokenOverride: token);
@@ -164,7 +190,11 @@ class ApiService {
     ];
   }
 
-  // 6. Tin tức nổi bật (không cần token)
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 6: TIN TỨC NỔI BẬT]
+  // - Gọi GET /api/news/featured, giải mã UTF-8 tiếng Việt
+  // - Trả về bài viết có background_img hiển thị ở đầu trang
+  // --------------------------------------------------------------------------
   Future<List<NewsItemModel>> fetchFeaturedNews() async {
     final url = '$baseUrl/api/news/featured';
     try {
@@ -179,7 +209,11 @@ class ApiService {
     return [];
   }
 
-  // 6.1. Lấy bài viết xem trước đại diện cho từng Category (219, 220, 221, 222)
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 7: BÀI VIẾT XEM TRƯỚC 4 CATEGORY]
+  // - Lấy bài viết mới nhất của 4 ID thầy giao: 219, 220, 221, 222
+  // - Sử dụng Future.wait để gọi đồng thời 4 API, tối ưu tốc độ tải trang
+  // --------------------------------------------------------------------------
   Future<Map<int, NewsItemModel>> fetchCategoryPreviews() async {
     final Map<int, NewsItemModel> previews = {};
     final categoryIds = [219, 220, 221, 222];
@@ -198,7 +232,11 @@ class ApiService {
     return previews;
   }
 
-  // 7. Tin tức theo chuyên mục (phân trang, không cần token)
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 8: TIN TỨC THEO CHUYÊN MỤC & PHÂN TRANG]
+  // - Gọi GET /api/news?cat_uid={id}&limit={limit}&offset={offset}
+  // - Phục vụ trực tiếp cho tính năng LAZYLOAD khi cuộn trang
+  // --------------------------------------------------------------------------
   Future<List<NewsItemModel>> fetchNewsByCategory(int catUid, {int limit = 10, int offset = 0}) async {
     final url = '$baseUrl/api/news?cat_uid=$catUid&limit=$limit&offset=$offset';
     try {
@@ -214,7 +252,11 @@ class ApiService {
     return [];
   }
 
-  // 7.1. Tải thêm tin tức phân trang cho lazyload toàn bộ chuyên mục (không cần token)
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 9: LAZYLOAD TỔNG HỢP TẤT CẢ BÀI VIẾT]
+  // - Tải thêm bài viết từ cả 4 chuyên mục theo phân trang offset
+  // - Sắp xếp bài viết mới nhất theo ngày đăng (postDate)
+  // --------------------------------------------------------------------------
   Future<List<NewsItemModel>> fetchMoreNews(int offset, {int limit = 8}) async {
     List<NewsItemModel> results = [];
     final categories = [219, 220, 221, 222];
@@ -236,7 +278,11 @@ class ApiService {
     return results;
   }
 
-  // 8. Chi tiết tin tức (lấy content HTML, không cần token)
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH - TÍNH NĂNG 10: CHI TIẾT TIN TỨC HTML]
+  // - Gọi GET /api/news/{uid} để lấy toàn bộ nội dung HTML bài viết
+  // - Giải mã utf8.decode để không bị lỗi dấu tiếng Việt
+  // --------------------------------------------------------------------------
   Future<String> fetchNewsDetail(dynamic idOrLink) async {
     int? uid;
     if (idOrLink is int) {

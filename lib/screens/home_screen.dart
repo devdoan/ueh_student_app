@@ -9,6 +9,15 @@ import 'account_tab.dart';
 import 'attendance_tab.dart';
 import 'notifications_tab.dart';
 
+// ============================================================================
+// 🎤 [THUYẾT MINH: MÀN HÌNH CHÍNH (HOME SCREEN)]
+// - Quản lý 4 tab chính: Trang chủ (Tin tức), Thông báo, Điểm danh, Tài khoản
+// - Tích hợp Menu Drawer tự động đồng bộ từ SQLite & API
+// - Quản lý 3 trạng thái tin tức qua enum NewsViewMode:
+//   1. overview: Màn hình tổng quan ngoài cùng (Tin nổi bật + 4 Category + Xem thêm)
+//   2. category: Màn hình lọc riêng bài viết theo Category (có Lazyload)
+//   3. allNews:  Màn hình hiển thị tất cả bài viết đa chuyên mục (có Lazyload)
+// ============================================================================
 enum NewsViewMode {
   overview, // Màn hình ngoài: Featured + 4 Category Previews + Nút "Xem thêm"
   category, // Màn hình danh sách theo Category cụ thể
@@ -64,7 +73,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final Color uehOrange = const Color(0xFFED6B28);  // Cam UEH
   final Color uehDarkSlate = const Color(0xFF355E6B); // Xanh đậm hộp tin nổi bật
 
-  // Danh mục cố định theo yêu cầu của thầy
+  // --------------------------------------------------------------------------
+  // 🎤 [THUYẾT MINH: 4 CHUYÊN MỤC THEO ĐÚNG CATEGORY ID THẦY GIAO]
+  // - 219: Cuộc sống UEH
+  // - 220: Khoa học - Góc nhìn chuyên gia
+  // - 221: Báo chí nói về UEH
+  // - 222: Tuyển sinh & Hướng nghiệp
+  // --------------------------------------------------------------------------
   static const List<Map<String, dynamic>> _officialCategories = [
     {'id': 219, 'name': 'CUỘC SỐNG UEH'},
     {'id': 220, 'name': 'KHOA HỌC – GÓC NHÌN CHUYÊN GIA'},
@@ -79,7 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadOverviewNews();
     _loadUnreadCount();
 
-    // Bắt sự kiện cuộn lazyload cho màn hình Category
+    // ------------------------------------------------------------------------
+    // 🎤 [THUYẾT MINH: CƠ CHẾ LẮNG NGHE CUỘN ĐỂ LAZYLOAD]
+    // - Khi vị trí cuộn tới gần đáy danh sách (maxScrollExtent - 250px),
+    //   tự động gọi API tải thêm 10 bài viết tiếp theo
+    // ------------------------------------------------------------------------
     _categoryScrollController.addListener(() {
       if (_categoryScrollController.position.pixels >=
           _categoryScrollController.position.maxScrollExtent - 250) {
@@ -87,7 +106,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
 
-    // Bắt sự kiện cuộn lazyload cho màn hình Tất cả bài viết
     _allNewsScrollController.addListener(() {
       if (_allNewsScrollController.position.pixels >=
           _allNewsScrollController.position.maxScrollExtent - 250) {
@@ -322,6 +340,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Icons.apps;
   }
 
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH: MENU DRAWER TIỆN ÍCH]:
+  // "Dạ thưa thầy, Menu Drawer hiển thị danh sách các tiện ích sinh viên.
+  // Danh sách này được nạp trước từ SQLite để hiển thị tức thì ngay cả khi mất mạng (offline).
+  // Khi có mạng, hệ thống tự động đồng bộ API /v1/menu mới nhất từ trường."
+  // ==========================================================================
   Widget _buildDrawer() {
     return Drawer(
       child: Container(
@@ -386,7 +410,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- COMPONENT: TIN TỨC NỔI BẬT (ẢNH 1) ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH: KHỐI TIN TỨC NỔI BẬT (FEATURED NEWS)]
+  // - Gọi API /api/news/featured lấy bài viết tiêu biểu
+  // - Ảnh background lớn ở trên, hộp slate teal #355E6B ở dưới
+  // - Hàng SDG icons và tiêu đề màu trắng căn giữa, bấm vào xem chi tiết HTML
+  // ==========================================================================
   Widget _buildFeaturedCard(NewsItemModel item) {
     final imageUrl = (item.backgroundImg != null && item.backgroundImg!.isNotEmpty)
         ? item.backgroundImg!
@@ -468,7 +497,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- COMPONENT: CARD CATEGORY Ở MÀN HÌNH BÊN NGOÀI (ẢNH 5) ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH: PHÂN TÁCH CLICK TRÊN KHỐI CATEGORY]
+  // - Bấm DÒNG CHỮ MÀU CAM (Category): mở trang danh sách lọc theo chuyên mục đó
+  // - Bấm DÒNG CHỮ MÀU XANH (Tiêu đề): mở THẲNG màn hình chi tiết bài viết đó
+  // ==========================================================================
   Widget _buildOverviewCategoryCard({
     required int catUid,
     required String catName,
@@ -558,7 +591,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- COMPONENT: CARD BÀI VIẾT ĐẦY ĐỦ CHO DANH SÁCH CATEGORY & TẤT CẢ (ẢNH 3 & 4) ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH: COMPONENT CARD BÀI VIẾT ĐẦY ĐỦ CHO DANH SÁCH LAZYLOAD]
+  // "Dạ thưa thầy, _buildFullNewsCard thiết kế theo đúng chuẩn giao diện bài viết UEH:
+  // - Trên cùng là tên Chuyên mục màu cam in hoa.
+  // - Dưới là Tiêu đề bài viết màu xanh cổ vịt #005F69.
+  // - Phần thân gồm bố cục 2 cột: Ảnh thumbnail bên trái, các icon SDG và mô tả tóm tắt bên phải.
+  // Khi người dùng bấm vào card, ứng dụng sẽ điều hướng sang NewsDetailScreen."
+  // ==========================================================================
   Widget _buildFullNewsCard(NewsItemModel item) {
     final thumb = (item.thumbnailImg != null && item.thumbnailImg!.isNotEmpty)
         ? item.thumbnailImg!
@@ -674,7 +714,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- BREADCRUMB THANH ĐIỀU HƯỚNG TRANG CHỦ > TÊN MỤC ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH: THANH ĐIỀU HƯỚNG BREADCRUMB]
+  // "Dạ thưa thầy, khi người dùng xem bài viết theo Category hoặc xem Tất cả tin tức,
+  // thanh Breadcrumb 'Trang chủ ❯ Tên mục' hiển thị ở đầu danh sách giúp người dùng
+  // biết rõ vị trí đang xem và bấm vào 'Trang chủ' để quay lại màn hình tổng quan."
+  // ==========================================================================
   Widget _buildBreadcrumb(String currentLabel) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -716,7 +761,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 1. GIAO DIỆN BÊN NGOÀI CỦA TRANG TIN TỨC (OVERVIEW VIEW) ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH: GIAO DIỆN TỔNG QUAN NGOÀI CÙNG (OVERVIEW VIEW)]
+  // "Dạ thưa thầy, màn hình tổng quan tin tức gồm 3 phần:
+  // 1. Khối tin nổi bật trên cùng (Featured News Card).
+  // 2. 4 chuyên mục chính theo đúng Category ID của thầy (219, 220, 221, 222).
+  // 3. Nút 'Xem thêm' ở dưới cùng để mở toàn bộ bài viết đa chuyên mục."
+  // ==========================================================================
   Widget _buildOverviewView() {
     return RefreshIndicator(
       onRefresh: _refreshCurrentData,
@@ -804,7 +855,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 2. GIAO DIỆN DANH SÁCH BÀI VIẾT THEO CATEGORY (LAZYLOAD) ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH: DANH SÁCH BÀI VIẾT THEO CHUYÊN MỤC (LAZYLOAD)]
+  // "Dạ thưa thầy, khi người dùng bấm vào tên chuyên mục màu cam, màn hình này hiển thị
+  // danh sách các bài viết thuộc Category đó.
+  // - Có tính năng Kéo để làm mới (RefreshIndicator).
+  // - Sử dụng ListView.builder kết hợp ScrollController để Lazyload tải tiếp khi cuộn xuống cuối."
+  // ==========================================================================
   Widget _buildCategoryListView() {
     return Column(
       children: [
@@ -852,7 +909,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 3. GIAO DIỆN TẤT CẢ BÀI VIẾT (LAZYLOAD) ---
+  // ==========================================================================
+  // 🎤 [THUYẾT MINH: DANH SÁCH TẤT CẢ BÀI VIẾT ĐA CHUYÊN MỤC (LAZYLOAD)]
+  // "Dạ thưa thầy, khi người dùng bấm nút 'Xem thêm', toàn bộ bài viết từ API /v1/news/all
+  // sẽ được tải và hiển thị. Danh sách này cũng hỗ trợ phân trang Lazyload tự động."
+  // ==========================================================================
   Widget _buildAllNewsListView() {
     return Column(
       children: [
@@ -919,6 +980,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_selectedIndex == 2) appBarTitle = 'Điểm danh';
     if (_selectedIndex == 3) appBarTitle = 'Tài khoản';
 
+    // ========================================================================
+    // 🎤 [THUYẾT MINH: ĐIỀU HƯỚNG UX VỚI POPSCOPE]
+    // - Khi người dùng ở màn hình lọc Category hoặc Xem thêm bài viết,
+    //   nhấn nút Back vật lý của điện thoại sẽ quay lại màn hình chính của tin tức
+    // - Không làm thoát ứng dụng đột ngột
+    // ========================================================================
     return PopScope(
       canPop: _selectedIndex == 0 && _newsViewMode == NewsViewMode.overview,
       onPopInvokedWithResult: (didPop, result) {
@@ -931,6 +998,11 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       child: Scaffold(
+        // ====================================================================
+        // 🎤 [THUYẾT MINH: APPBAR ĐỘNG & BIẾN ĐỔI ICON 3 GẠCH THÀNH MŨI TÊN <]
+        // - Nền xanh cổ vịt uehPrimary (#005F69) chuẩn màu nút Điểm danh
+        // - Khi ở màn hình con (Category/AllNews): tự đổi icon 3 gạch thành mũi tên quay lại
+        // ====================================================================
         appBar: AppBar(
           backgroundColor: uehPrimary,
           foregroundColor: Colors.white,
@@ -992,6 +1064,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const AccountTab(),
           ],
         ),
+        // ====================================================================
+        // 🎤 [THUYẾT MINH: HUY HIỆU BADGE ĐỎ ĐẾM THÔNG BÁO CHƯA ĐỌC]
+        // - Lấy số lượng thông báo có is_read = 0 từ SQLite (DatabaseHelper)
+        // - Cập nhật tự động theo thời gian thực khi có thông báo mới đẩy về
+        // ====================================================================
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
