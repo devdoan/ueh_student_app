@@ -40,6 +40,11 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         title: const Text('Chi tiết tin tức'),
         backgroundColor: const Color(0xFF005F69),
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          tooltip: 'Quay lại',
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

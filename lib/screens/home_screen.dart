@@ -474,39 +474,50 @@ class _HomeScreenState extends State<HomeScreen> {
     required String catName,
     required NewsItemModel? previewItem,
   }) {
-    return InkWell(
-      onTap: () => _openCategory(catUid, catName),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Tiêu đề Category màu cam chuẩn theo yêu cầu
-            Text(
-              catName,
-              style: TextStyle(
-                color: uehOrange,
-                fontWeight: FontWeight.bold,
-                fontSize: 14.5,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Dòng chữ màu cam (Category): bấm vào thì vào trang tổng hợp của các bài viết có phân loại đó
+          InkWell(
+            onTap: () => _openCategory(catUid, catName),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2.0),
+              child: Text(
+                catName,
+                style: TextStyle(
+                  color: uehOrange,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14.5,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            // Dãy SDG icon nếu có
-            if (previewItem != null && previewItem.sdgs.isNotEmpty) ...[
-              Row(
+          ),
+          const SizedBox(height: 8),
+
+          // 2. Dãy SDG icon nếu có: bấm vào cũng mở thẳng bài viết đó
+          if (previewItem != null && previewItem.sdgs.isNotEmpty) ...[
+            InkWell(
+              onTap: () {
+                if (previewItem.title.isNotEmpty) {
+                  context.push('/news_detail', extra: previewItem);
+                }
+              },
+              child: Row(
                 children: previewItem.sdgs.map((sdg) => Padding(
                   padding: const EdgeInsets.only(right: 5.0),
                   child: Image.asset(
@@ -517,10 +528,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )).toList(),
               ),
-              const SizedBox(height: 8),
-            ],
-            // Tiêu đề bài viết đại diện màu xanh cổ vịt
-            Text(
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // 3. Dòng chữ màu xanh (Tiêu đề bài viết): bấm vào thì vào thẳng bài viết đó luôn
+          InkWell(
+            onTap: () {
+              if (previewItem != null && previewItem.title.isNotEmpty) {
+                context.push('/news_detail', extra: previewItem);
+              }
+            },
+            child: Text(
               previewItem != null && previewItem.title.isNotEmpty
                   ? previewItem.title
                   : 'Chưa có bài viết mới',
@@ -533,8 +552,8 @@ class _HomeScreenState extends State<HomeScreen> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -925,12 +944,22 @@ class _HomeScreenState extends State<HomeScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
+          leading: (_selectedIndex == 0 && _newsViewMode != NewsViewMode.overview)
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  tooltip: 'Quay lại',
+                  onPressed: () {
+                    setState(() {
+                      _newsViewMode = NewsViewMode.overview;
+                    });
+                  },
+                )
+              : Builder(
+                  builder: (context) => IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white),
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                  ),
+                ),
           actions: [
             if (_selectedIndex == 3)
               IconButton(
